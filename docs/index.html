@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Câmara da Lapa em Dados</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Presença, votações e proposições dos vereadores da Câmara Municipal da Lapa-PR, com dados oficiais do SAPL.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: faixa de cabeçalho cívica, seletor de período fixo, seções empilhadas (resumo → vereadores → perfil → votações → projetos → método) */
+:root{
+  --bg:#F4F6F3; --surface:#FFFFFF; --ink:#15201A; --muted:#5A6760; --line:#D9E0DA; --soft:#EAF0EB;
+  --accent:#1E6B49; --accent-ink:#FFFFFF; --accent-soft:#DDEDE3;
+  --sim:#2D7D59; --nao:#B3432F; --abs:#A07818; --nv:#7C8781; --just:#C4922B; --falta:#B3432F;
+  --c1:#1E6B49; --c2:#4C9A74; --c3:#8DBFA2; --c4:#C4922B; --c5:#7B6AA8; --c6:#A9B3AD;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1411; --surface:#151D19; --ink:#E4ECE6; --muted:#9AA9A0; --line:#2A3630; --soft:#1B2520;
+  --accent:#5DC191; --accent-ink:#0B1410; --accent-soft:#1C3328;
+  --sim:#5DC191; --nao:#EE7A63; --abs:#E0B54E; --nv:#8E9A93; --just:#E0B54E; --falta:#EE7A63;
+  --c1:#5DC191; --c2:#3E9A6E; --c3:#2E6B4E; --c4:#E0B54E; --c5:#A795D6; --c6:#56625B;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1411; --surface:#151D19; --ink:#E4ECE6; --muted:#9AA9A0; --line:#2A3630; --soft:#1B2520;
+  --accent:#5DC191; --accent-ink:#0B1410; --accent-soft:#1C3328;
+  --sim:#5DC191; --nao:#EE7A63; --abs:#E0B54E; --nv:#8E9A93; --just:#E0B54E; --falta:#EE7A63;
+  --c1:#5DC191; --c2:#3E9A6E; --c3:#2E6B4E; --c4:#E0B54E; --c5:#A795D6; --c6:#56625B;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+.wrap{max-width:1180px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.1}
+h2{font-size:clamp(1.4rem,2.6vw,1.9rem);font-weight:700;letter-spacing:-.01em}
+h3{font-size:1.1rem;font-weight:700}
+a{color:var(--accent)}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.eyebrow{font-size:.75rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* Cabeçalho */
+header.top{padding-block:28px 18px;display:grid;gap:14px}
+.brand{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;justify-content:space-between}
+.brand h1{font-size:clamp(2rem,5.4vw,3.4rem);font-weight:800;letter-spacing:-.025em}
+.brand h1 span{color:var(--accent)}
+.lede{max-width:62ch;color:var(--muted);margin:0}
+.meta{display:flex;gap:8px 18px;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:600}
+
+/* Barra de período */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);
+  padding-block:10px;display:flex;gap:10px 16px;align-items:center;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:6px 14px;border-radius:999px;cursor:pointer;font-weight:600;font-size:.9rem;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+nav.jump{display:flex;gap:4px 14px;flex-wrap:wrap;font-size:.9rem}
+nav.jump a{text-decoration:none;color:var(--muted);font-weight:600}
+nav.jump a:hover{color:var(--accent)}
+@media (max-width:600px){nav.jump{display:none}.vt .mat{min-width:190px}}
+
+section{padding-block:34px 8px;display:grid;gap:16px}
+.sec-head{display:grid;gap:6px}
+.sec-head p{margin:0;color:var(--muted);max-width:70ch}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:grid;gap:4px;min-width:0}
+.kpi .v{font-family:var(--display);font-weight:800;font-size:clamp(1.7rem,3.6vw,2.4rem);line-height:1}
+.kpi .l{font-size:.85rem;color:var(--muted)}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Tabelas */
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+thead th{font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;white-space:nowrap;background:var(--soft)}
+th.sort{cursor:pointer;user-select:none}
+th.sort[aria-sort="descending"]::after{content:" ↓"}
+th.sort[aria-sort="ascending"]::after{content:" ↑"}
+td.r,th.r{text-align:right}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover{background:var(--soft)}
+tbody tr.sel{background:var(--accent-soft)}
+
+.who{display:flex;align-items:center;gap:10px;min-width:210px}
+.av{width:36px;height:36px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);
+  font:700 .8rem var(--display);overflow:hidden;position:relative}
+.av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:var(--surface)}
+.av.lg{width:64px;height:64px;font-size:1.2rem}
+.who .n{font-weight:700;line-height:1.2}
+.who .p{font-size:.78rem;color:var(--muted)}
+.tag{display:inline-block;font-size:.72rem;font-weight:700;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.off{border-color:var(--nao);color:var(--nao)}
+
+.pbar{display:flex;align-items:center;gap:8px;min-width:150px}
+.pbar .track{flex:1;height:8px;border-radius:99px;background:var(--soft);overflow:hidden;display:flex}
+.pbar .track i{display:block;height:100%}
+.pbar .pct{width:3.4em;text-align:right;font-weight:600}
+.stack{display:flex;height:10px;border-radius:99px;overflow:hidden;background:var(--soft);min-width:90px}
+.stack i{display:block;height:100%}
+.legend{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:.82rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* Perfil */
+.profile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:grid;gap:18px}
+.p-head{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.p-head .t{display:grid;gap:2px;min-width:0}
+.p-head h3{font-size:1.5rem}
+.p-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.p-stats div{border-left:3px solid var(--line);padding:2px 10px}
+.p-stats b{display:block;font-family:var(--display);font-size:1.5rem;line-height:1.1}
+.p-stats span{font-size:.82rem;color:var(--muted)}
+.strip{display:flex;flex-wrap:wrap;gap:3px}
+.strip i{width:12px;height:12px;border-radius:3px;display:block}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+@media (max-width:820px){.cols{grid-template-columns:minmax(0,1fr)}}
+.list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.list li{border:1px solid var(--line);border-radius:8px;padding:9px 12px;display:grid;gap:3px;min-width:0}
+.list .id{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+.empty{color:var(--muted);font-style:italic}
+.picker{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+select,input[type=search]{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 10px;max-width:100%}
+
+/* Votações */
+.vt td.v{text-align:center;padding:6px 4px;min-width:46px}
+.vt th.v{text-align:center;padding:8px 4px}
+.chip{display:inline-block;min-width:38px;padding:2px 6px;border-radius:6px;font-size:.72rem;font-weight:700;text-align:center}
+.chip.S{background:color-mix(in srgb,var(--sim) 18%,transparent);color:var(--sim)}
+.chip.N{background:color-mix(in srgb,var(--nao) 20%,transparent);color:var(--nao)}
+.chip.A{background:color-mix(in srgb,var(--abs) 22%,transparent);color:var(--abs)}
+.chip.X{border:1px dashed var(--nv);color:var(--nv)}
+.chip.O{color:var(--muted);opacity:.55}
+.vt .mat{min-width:260px;max-width:420px}
+.vt .mat b{font-family:var(--mono);font-size:.8rem}
+.vt .mat div{font-size:.86rem;color:var(--muted);line-height:1.35}
+.res{font-size:.78rem;font-weight:700}
+.res.ap{color:var(--sim)} .res.rp{color:var(--nao)} .res.ot{color:var(--muted)}
+tr.div{background:color-mix(in srgb,var(--abs) 9%,transparent)}
+.toggle{display:inline-flex;gap:8px;align-items:center;font-size:.92rem;cursor:pointer}
+
+/* Projetos */
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:.85rem;cursor:pointer;color:var(--muted);font-weight:600}
+.chips button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.pc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:grid;gap:6px;align-content:start;min-width:0}
+.pc .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.pc .top b{font-family:var(--mono);font-size:.82rem}
+.pc .top span{font-size:.78rem;color:var(--muted)}
+.pc p{margin:0;font-size:.93rem;line-height:1.4}
+.pc .by{font-size:.8rem;color:var(--muted)}
+.theme{font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent)}
+.more{justify-self:start;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:600}
+
+/* Método */
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.note{border-top:2px solid var(--accent);padding-top:10px}
+.note h3{font-size:1rem;margin-bottom:4px}
+.note p{margin:0;font-size:.93rem;color:var(--muted)}
+footer{padding-block:34px 40px;margin-top:30px;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted);display:grid;gap:6px}
+@media (prefers-reduced-motion:no-preference){.pbar .track i,.stack i{transition:width .35s ease}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div class="brand">
+    <div>
+      <div class="eyebrow">Lapa · Paraná · 19ª Legislatura (2025–2028)</div>
+      <h1>Câmara da Lapa <span>em Dados</span></h1>
+    </div>
+  </div>
+  <p class="lede">Presença, votações e propostas de cada vereador, com dados oficiais do sistema legislativo da Câmara Municipal (SAPL), organizados para qualquer pessoa consultar.</p>
+  <div class="meta" id="meta"></div>
+</header>
+
+<div class="bar">
+  <div class="seg" role="group" aria-label="Período">
+    <button id="p-all" data-p="all" aria-pressed="false">Legislatura toda</button>
+    <button id="p-2025" data-p="2025" aria-pressed="false">2025</button>
+    <button id="p-2026" data-p="2026" aria-pressed="true">2026</button>
+  </div>
+  <nav class="jump" aria-label="Seções">
+    <a href="#vereadores">Vereadores</a><a href="#perfil">Perfil</a><a href="#votacoes">Votações</a><a href="#projetos">Projetos</a><a href="#metodo">Como ler</a>
+  </nav>
+</div>
+
+<section id="resumo" aria-label="Resumo do período">
+  <div class="kpis" id="kpis"></div>
+</section>
+
+<section id="vereadores">
+  <div class="sec-head">
+    <h2>Vereadores</h2>
+    <p>Clique em um nome para abrir o perfil. Clique no título de uma coluna para ordenar.</p>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div class="scroll"><table id="tv"></table></div>
+</section>
+
+<section id="perfil">
+  <div class="sec-head picker">
+    <h2>Perfil</h2>
+    <label class="muted" for="selv">Vereador:</label>
+    <select id="selv"></select>
+  </div>
+  <div class="profile" id="prof"></div>
+</section>
+
+<section id="votacoes">
+  <div class="sec-head">
+    <h2>Votações nominais</h2>
+    <p>Só as votações nominais registram o voto de cada vereador. As demais são simbólicas e o sistema guarda apenas o resultado.</p>
+  </div>
+  <label class="toggle"><input type="checkbox" id="onlydiv"> Mostrar só votações com voto contrário ou abstenção</label>
+  <div class="legend">
+    <span><b class="chip S">Sim</b></span><span><b class="chip N">Não</b></span><span><b class="chip A">Abst.</b></span>
+    <span><b class="chip X">N/V</b> não votou (em geral, o presidente)</span><span><b class="chip O">—</b> sem registro (ausente ou fora do mandato)</span>
+  </div>
+  <div class="scroll"><table class="vt" id="tvt"></table></div>
+</section>
+
+<section id="projetos">
+  <div class="sec-head">
+    <h2>Projetos apresentados</h2>
+    <p>Anteprojetos de lei, títulos, moções e projetos de resolução. Indicações e requerimentos aparecem só como contagem na tabela de vereadores.</p>
+  </div>
+  <div class="filters">
+    <select id="fa" aria-label="Filtrar por autor"></select>
+    <input type="search" id="fq" placeholder="Buscar no texto…" aria-label="Buscar no texto">
+  </div>
+  <div class="chips" id="ft" role="group" aria-label="Filtrar por tema"></div>
+  <div class="muted" id="pcount"></div>
+  <div class="plist" id="plist"></div>
+  <button class="more" id="pmore" hidden>Mostrar mais</button>
+</section>
+
+<section id="metodo">
+  <div class="sec-head"><h2>Como ler estes dados</h2></div>
+  <div class="notes">
+    <div class="note"><h3>Presença</h3><p>Conta as sessões plenárias com lista de presença registrada no SAPL, dentro do período em que cada vereador exerceu o mandato. Sessões sem nenhum registro de presença ficam fora da conta.</p></div>
+    <div class="note"><h3>Faltas justificadas</h3><p>São as ausências com justificativa lançada no sistema pela Câmara. A justificativa não muda o percentual de presença.</p></div>
+    <div class="note"><h3>Quantidade não é qualidade</h3><p>Uma indicação (pedido ao Executivo, como uma lombada) e um projeto de lei contam como uma unidade cada. Por isso a tabela separa os tipos de proposição.</p></div>
+    <div class="note"><h3>O presidente quase não vota</h3><p>Pelo Regimento, o presidente da Câmara só vota em casos específicos, como empate ou quórum qualificado. O "N/V" dele não é omissão.</p></div>
+    <div class="note"><h3>Leis vêm do Executivo</h3><p>A maioria dos projetos de lei ordinária é da Prefeitura. Os vereadores apresentam "anteprojetos de lei", e muitos tratam de nome de rua ou utilidade pública.</p></div>
+    <div class="note"><h3>Dados como estão</h3><p>Os números refletem o que a Câmara lançou no SAPL. Se algo parecer errado, a fonte oficial é o próprio sistema, em sapl.lapa.pr.leg.br.</p></div>
+  </div>
+</section>
+
+<footer>
+  <div>Fonte: Câmara Municipal da Lapa, Sistema de Apoio ao Processo Legislativo (SAPL), <a href="https://sapl.lapa.pr.leg.br/" target="_blank" rel="noopener">sapl.lapa.pr.leg.br</a>. Dados sob licença Creative Commons BY-SA 4.0.</div>
+  <div>Projeto cidadão e independente, sem vínculo com a Câmara Municipal ou com partidos. Mesma apresentação para todos os vereadores.</div>
+  <div id="gen"></div>
+</footer>
+</div>
+
+<script>
+const DATA = {"ger":"2026-10-15T12:20","ver":[["ACYR DO SINDICATO","PSD",1,1446,"ACYR HOFFMANN","http://sapl.lapa.pr.leg.br/media/sapl/public/parlamentar/6/acyr_site.jpg"],["ARTHUR VIDAL","PSDB",1,null,"Arthur Bastian Vidal","http://sapl.lapa.pr.leg.br/media/sapl/public/parlamentar/13/arthur_site.jpg"],["BRUNO BUX","PT",1,1429,"BRUNO OSMIL BUX","http://sapl.lapa.pr.leg.br/media/sapl/public/parlamentar/225/bruno25-removebg-preview_sVgzbez.png"],["CAMILA SCHEFER PIERIN","PSDB",1,1462,"CAMILA SCHEFER PIERIN","http://sapl.lapa.pr.leg.br/media/sapl/public/parlamentar/223/camila25-removebg-preview.png"],["FABIANO CORDEIRO","PSD",1,null,"FABIANO CORDEIRO","http://sapl.lapa.pr.leg.br/media/sapl/public/parlamentar/226/fabiano_cordeiro_2JbuZYe.jpg"],["MARCOS LECH","PSB",1,null,"MARCOS JOSÉ LECH","http://sapl.lapa.pr.leg.br/media/sapl/public/parlamentar/215/marcoslechsapl.jpg"],["MÁRIO PADILHA","PSD",1,null,"MÁRIO JORGE PADILHA SANTOS","http://sapl.lapa.pr.leg.br/media/sapl/public/parlamentar/15/mario_12024-removebg-preview.png"],["PAULO MASSA","PSDB",1,1483,"PAULO CEZAR FIGUEIRO TURMINA","http://sapl.lapa.pr.leg.br/media/sapl/public/parlamentar/224/paulo_massa25-removebg-preview.png"],["VILMAR FÁVARO PURGA","PODEMOS",1,null,"VILMAR CZARNESKI FÁVARO PURGA","http://sapl.lapa.pr.leg.br/media/sapl/public/parlamentar/8/purga_site.jpg"],["MARCO ANTONIO BORTOLETTO","PSD",0,null,"MARCO ANTONIO BORTOLETTO","http://sapl.lapa.pr.leg.br/media/sapl/public/parlamentar/193/marcobortoletosapl.jpg"]],"vid":[6,13,225,223,226,215,15,224,8,193],"sess":[[534,"2025-01-01",3,1,"1111011111","0000000000"],[535,"2025-01-02",6,1,"1111011111","0000000000"],[537,"2025-01-27",2,1,"1111011111","0000000000"],[597,"2025-01-28",4,1,"1111011110","0000000000"],[538,"2025-01-29",2,2,"1111001111","0000000000"],[539,"2025-02-18",1,1,"1111011111","0000000000"],[540,"2025-02-25",1,2,"1111011111","0000000000"],[541,"2025-03-11",1,3,"1110111110","0001000000"],[542,"2025-03-18",1,4,"1111101110","0000010000"],[543,"2025-03-25",1,5,"1111101110","0000010000"],[544,"2025-04-01",1,6,"1111101110","0000010000"],[545,"2025-04-08",1,7,"1111101110","0000010000"],[598,"2025-04-08",4,2,"1111101110","0000000000"],[546,"2025-04-15",1,8,"1111101100","0000010010"],[547,"2025-04-29",1,9,"1111111110","0000000000"],[548,"2025-05-06",1,10,"1111111110","0000000000"],[549,"2025-05-13",1,11,"1111101010","0000000100"],[550,"2025-05-20",1,12,"1111111110","0000000000"],[551,"2025-05-27",1,13,"1111111110","0000000000"],[552,"2025-06-03",1,14,"1011111110","0000000000"],[553,"2025-06-10",1,15,"1111111110","0000000000"],[554,"2025-06-17",1,16,"1111111110","0000000000"],[555,"2025-06-24",1,17,"1111111110","0000000000"],[556,"2025-07-01",1,18,"1111111110","0000000000"],[557,"2025-07-08",1,19,"1101111110","0010000000"],[558,"2025-07-15",1,20,"1111101110","0000010000"],[559,"2025-07-22",1,21,"1111111110","0000000000"],[560,"2025-07-29",1,22,"1111111110","0000000000"],[561,"2025-08-05",1,23,"1111111110","0000000000"],[562,"2025-08-12",1,24,"1111111010","0000000100"],[563,"2025-08-19",1,25,"1111111100","0000000010"],[564,"2025-08-25",2,3,"1111111110","0000000000"],[565,"2025-08-26",1,26,"1111111010","0000000100"],[566,"2025-08-27",2,4,"1111101110","0000000000"],[567,"2025-09-02",1,27,"1111101110","0000010000"],[568,"2025-09-09",1,28,"1111111110","0000000000"],[569,"2025-09-16",1,29,"1111111110","0000000000"],[570,"2025-09-16",4,3,"1111111110","0000000000"],[571,"2025-09-23",1,30,"1011111100","0000000010"],[572,"2025-09-23",4,4,"1011111100","0000000000"],[573,"2025-09-30",1,31,"1011111110","0000000000"],[574,"2025-10-07",1,32,"1101111010","0010000100"],[575,"2025-10-14",1,33,"1111111110","0000000000"],[576,"2025-10-21",1,34,"1011101110","0000010000"],[577,"2025-11-04",1,35,"1011110010","0000001100"],[578,"2025-11-11",1,36,"1111111110","0000000000"],[579,"2025-11-18",1,37,"1111101110","0000000000"],[580,"2025-11-25",1,38,"1011111100","0000000010"],[581,"2025-12-02",1,39,"1101100110","0010010000"],[582,"2025-12-09",1,40,"1111111110","0000000000"],[583,"2025-12-18",2,5,"1111101100","0000000000"],[584,"2026-01-15",2,1,"1101101110","0010000000"],[585,"2026-02-05",2,2,"1111110110","0000000000"],[586,"2026-02-10",2,3,"1111111110","0000000000"],[587,"2026-02-24",1,1,"1101111110","0010000000"],[588,"2026-03-03",1,2,"1011111110","0000000000"],[590,"2026-03-10",1,3,"1111111110","0000000000"],[591,"2026-03-10",4,1,"1111111110","0000000000"],[592,"2026-03-17",1,4,"1101101110","0010010000"],[593,"2026-03-24",1,5,"1011111110","0000000000"],[594,"2026-03-31",1,6,"1110111110","0001000000"],[595,"2026-04-07",1,7,"1111011110","0000100000"],[596,"2026-04-14",1,8,"1111111110","0000000000"],[599,"2026-05-05",1,9,"1111111110","0000000000"],[600,"2026-05-12",1,10,"0111101100","0000000010"],[601,"2026-05-19",1,11,"1111111110","0000000000"],[602,"2026-05-26",1,12,"1111111110","0000000000"],[603,"2026-06-02",1,13,"1111111110","0000000000"],[604,"2026-06-09",1,14,"1001101110","0010010000"],[605,"2026-06-16",1,15,"1111111110","0000000000"],[606,"2026-06-23",1,16,"1111111110","0000000000"],[607,"2026-06-30",1,17,"1111111110","0000000000"],[608,"2026-07-07",1,18,"1101101010","0000010100"],[610,"2026-07-14",1,19,"1011111110","0000000000"],[609,"2026-07-14",4,2,"1011111110","0000000000"],[611,"2026-07-21",1,20,"1111111110","0000000000"],[612,"2026-07-28",1,21,"1111111110","0000000000"],[613,"2026-08-04",1,22,"1111101110","0000000000"],[614,"2026-08-11",1,23,"1111111110","0000000000"],[615,"2026-08-18",1,24,"1111111110","0000000000"],[616,"2026-08-25",1,25,"0000000000","0000000000"],[617,"2026-09-01",1,26,"1000111010","0011000100"],[618,"2026-09-08",1,27,"1111101100","0000010010"],[619,"2026-09-15",1,28,"1111111110","0000000000"],[620,"2026-09-22",1,29,"1111111110","0000000000"],[621,"2026-09-29",1,30,"1011101110","0000010000"],[622,"2026-10-06",1,31,"1111011110","0000100000"],[623,"2026-10-13",1,32,"0111111110","0000000000"]],"nom":[["2025-03-18",542,"APL 29/2024","Denomina de “ESTRADA ARISTIDES DE MELO”, a Estrada Principal Rural na localidade do Marafigo.","Aprovado","S-SSS.SSS.",11923],["2025-04-01",544,"APL 3/2025","Denomina de \"Estrada Ivete da Silva Mayer\", o logradouro público conforme especifica\".","Aprovado","S-SSS.SSS.",12078],["2025-04-01",544,"APL 4/2025","Altera a denominação de logradouro público municipal.","Aprovado","S-SSS.SSS.",12079],["2025-04-08",545,"APL 23/2024","Denomina de \"Rua Antônio Loures Ribeiro\", o logradouro municipal que especifica.","Aprovado","S-SSS.SSS.",11653],["2025-04-29",547,"APL 29/2024","Denomina de “ESTRADA ARISTIDES DE MELO”, a Estrada Principal Rural na localidade do Marafigo.","Aprovado","SSSSSSSSS.",11923],["2025-05-13",549,"APL 7/2025","Denomina de \"Beco João Kologe\" o logradouro público conforme especifica.","Aprovado","S-SSS.S.S.",12205],["2025-05-27",551,"PLC 1/2025","Institui a Planta Genérica de Valores do Município da Lapa e regula a forma de apuração do valor venal de imóveis, para efeito de lançamento do Imposto sobre a…","Aprovado","SSNSSSSSS.",12097],["2025-05-27",551,"PLO 51/2025","Autoriza o Poder Executivo a contratar operação de crédito com a CAIXA ECONÔMICA FEDERAL, e dá outras providências.","Aprovado","S-SSSSSSS.",12362],["2025-05-27",551,"PLO 52/2025","Autoriza o Poder Executivo a contratar operação de crédito com o BANCO DO BRASIL S. A., e dá outras providências.","Aprovado","S-SSSSSSS.",12363],["2025-05-20",550,"APLC 1/2025","Altera o artigo 172 da Lei nº 3701, de 20 de março de 2020, que dispõe sobre o Código de Posturas do Município da Lapa e dá outras providências.","Aprovado","SSSSSSSSS.",12288],["2025-05-20",550,"PLC 1/2025","Institui a Planta Genérica de Valores do Município da Lapa e regula a forma de apuração do valor venal de imóveis, para efeito de lançamento do Imposto sobre a…","Aprovado em 1ª votação","SSNSSSSSS.",12097],["2025-05-20",550,"APL 23/2024","Denomina de \"Rua Antônio Loures Ribeiro\", o logradouro municipal que especifica.","Aprovado","SSSSSSSSS.",11653],["2025-06-24",555,"APL 14/2025","Denomina de “Estrada Olívio Fávaro” o logradouro público conforme especifica.","Aprovado","SSSSSSSSA.",12497],["2025-06-24",555,"APLC 2/2025","Concede isenção de IPTU para pessoas com TEA (Transtorno do Espectro Autista).","Aprovado","SSSSSSSSS.",12454],["2025-09-30",573,"PLC 4/2025","Altera e acrescenta dispositivos na Lei Municipal n° 3.708/2020, que dispõe sobre o Sistema Viário do Município da Lapa e dá outras providências.","Aprovado","S.SSSSSSS.",12788],["2025-09-30",573,"PLC 6/2025","Dispõe sobre o Programa de Recuperação de Créditos Fiscais - REFIS, no Município de Lapa e dá outras providências.","Aprovado","S.SSSSSSS.",12854],["2025-10-21",576,"PLC 3/2025","Define os critérios sobre a delimitação das Áreas Urbanas Consolidadas (AUC) e a definição das Áreas de Preservação Permanente (APP) em Área Urbana Consolidada (AUC),…","Aprovado","S.SSS.SSS.",12536],["2025-10-21",576,"APL 24/2025","Denomina de \"Beco Pedro de Oliveira Rosa\" o logradouro público conforme especifica.","Aprovado","-.SSS.SSS.",12942],["2025-11-25",580,"PLC 10/2025","Altera, acrescenta e suprime dispositivos na Lei Municipal n° 3.711/2020, que dispõe sobre o Código de Obras e Edificações do Município da Lapa e dá outras providências.","Aprovado","S.SSSSSS..",13028],["2025-11-25",580,"PLC 8/2025","Altera e acrescenta dispositivos na Lei Municipal n° 3.708/2020, que dispõe sobre o Sistema Viário do Município da Lapa e dá outras providências.","Aprovado","S.SSSSSS..",13026],["2025-11-25",580,"PLC 11/2025","Altera, acrescenta e suprime dispositivos na Lei Municipal n° 3.710/2020, que dispõe sobre Zoneamento de Uso e Ocupação do Solo do Município da Lapa e dá outras…","Aprovado","S.SSSSSS..",13029],["2025-11-25",580,"PLC 12/2025","Altera, acrescenta e suprime dispositivos na Lei Municipal n° 3.709/2020, que dispõe sobre a Delimitação dos Perímetros Urbanos do Município da Lapa e dá outras…","Aprovado","S.SSSSSS..",13038],["2025-12-02",581,"PLC 10/2025","Altera, acrescenta e suprime dispositivos na Lei Municipal n° 3.711/2020, que dispõe sobre o Código de Obras e Edificações do Município da Lapa e dá outras providências.","Aprovado","SS.SS..SS.",13028],["2025-12-02",581,"APL 24/2025","Denomina de \"Beco Pedro de Oliveira Rosa\" o logradouro público conforme especifica.","Aprovado","SS.SS..SS.",12942],["2025-12-02",581,"PDL 12/2025","Concede o título de Cidadã Honorária da Lapa à senhora Ana Luiza de Oliveira Tauchen.","Aprovado","SS.SS..SS.",13072],["2025-12-09",582,"PDL 13/2025","Concede Título de Cidadão Honorário ao Reverendo Padre Elves Allano Perrony, pároco da Paroquia Santo Antônio da Lapa.","Aprovado","SSSSSSSSS.",13145],["2025-12-09",582,"PDL 14/2025","Concede Título de Cidadão Benemérito ao senhor Leori José de Morais Trindade.","Aprovado","SSSSSSSSS.",13146],["2026-02-24",587,"APL 29/2025","Altera os incisos II e III do artigo 3º da Lei nº 2251, de 2o de novembro de 2008.","Aprovado","SN.SSSSSN.",13070],["2026-03-03",588,"APL 1/2026","Denomina de \"Rua João Vitor Rodrigues Guimarães\", o logradouro público conforme especifica.","Aprovado","-.SSSSSSS.",13271],["2026-03-24",593,"APL 3/2026","Denomina de \"Rua Osvaldo de Jesus Martins\", a rua Municipal que especifica.","Aprovado","-.SSSSSSS.",13290],["2026-03-24",593,"APL 5/2026","Denomina de \"Rua Remi Pacheco Camargo\", a rua Municipal que especifica.","Aprovado","-.SSSSSSS.",13308],["2026-03-31",594,"PELOA 1/2026","Altera a redação dos parágrafos 1º e 3º do artigo 30 da Lei Orgânica Municipal.","Aprovado","SSS.SSSSS.",13256],["2026-03-31",594,"PRE 1/2026","Altera os artigos 28 e 29 do Regimento Interno do Poder Legislativo da Lapa.","Aprovado","SSS.SSSSS.",13257],["2026-03-31",594,"PDL 1/2026","Concede o título de Cidadão Benemérito ao Sr. Luiz Roberto Bruel.","Aprovado","SSS.SSSSS.",13402],["2026-04-14",596,"APL 9/2026","Denomina de \"Estrada Francisco Feltrin\" o logradouro público conforme especifica.","Aprovado","-SSSSSSSS.",13486],["2026-05-12",600,"APL 10/2026","Denomina de \"Rua Pedro Henrique Druscz\", a rua Municipal que especifica.","Retirado",".SSSS.SS..",13515],["2026-05-12",600,"APL 11/2026","Denomina de \"Rua João Maria Fernandes de Barros\", a rua Municipal que especifica.","Retirado",".SSSS.SS..",13516],["2026-06-30",607,"APLC 1/2026","Inclui o parágrafo segundo ao artigo 27 da Lei nº 3701, de 20 de março de 2020, que dispõe sobre o Código de Posturas do Município da Lapa.","Reprovado","NNNNNNNNN.",13508],["2026-06-30",607,"APLC 2/2026","Altera o § 3º do artigo 33 da Lei Municipal nº 3701/2020, que dispõe sobre o Código de Posturas do Município da Lapa e dá outras providências.","Reprovado","NNNNNNNNN.",13511],["2026-06-30",607,"APL 12/2026","Denomina de \"Estrada Manoel Francisco Lourenço Vieira\", o logradouro público conforme especifica.","Aprovado","-SSSSSSSS.",13547],["2026-07-07",608,"APL 15/2026","Denomina de Rua Francisco Wolf o logradouro público municipal que especifica.","Aprovado","-S.SS.S.S.",13700],["2026-08-04",613,"PDL 3/2026","Concede Título de Cidadã Benemérita à Senhora Marly Weiss da Silveira.","Aprovado","SSSSS.SSS.",13812],["2026-08-25",616,"APL 20/2026","Denomina de \"Rua Miguel Camargo Neto\", o logradouro público conforme especifica.","Aprovado","-SSSSSSSS.",13924],["2026-09-08",618,"APL 21/2026","Denomina de \"Rua Benedito Casado Lopes\" o logradouro público conforme especifica.","Aprovado","-SSSS.SS..",13925]],"cnt":{"0":{"2025":{"APL":2,"EIMP":2,"IND":11,"INDV":2,"MOC":1,"REQ":11,"REQV":24},"2026":{"APL":2,"EIMP":7,"INDV":2,"PELOA":1,"PRE":1,"REQ":5,"REQV":9,"RA":1}},"1":{"2025":{"APL":5,"EIMP":2,"PDL":3,"REQ":7,"REQV":2},"2026":{"APL":3,"APLC":1,"EIMP":6,"INDV":5,"PELOA":1,"PRE":1}},"2":{"2025":{"APL":2,"EM":2,"EIMP":10,"IND":90,"INDV":7,"MOC":10,"OF":1,"PDL":3,"REQ":86,"REQV":58},"2026":{"APL":2,"APLC":1,"EM":1,"EIMP":16,"IND":113,"INDV":11,"MOC":4,"PDL":1,"PELOA":1,"PRE":1,"REQ":91,"REQV":48}},"3":{"2025":{"APL":7,"APLC":2,"EIMP":2,"IND":24,"INDV":3,"MOC":3,"REQ":5,"REQV":3},"2026":{"APL":1,"EIMP":6,"IND":37,"PELOA":1,"PRE":1,"REQ":9,"REQV":1}},"4":{"2025":{"APL":6,"EIMP":2,"ESG":1,"IND":139,"INDV":15,"MOC":1,"PDL":1,"REQ":108,"REQV":11},"2026":{"APL":6,"EIMP":11,"IND":118,"INDV":8,"PDL":1,"PELOA":1,"PRE":1,"REQ":80,"REQV":10}},"5":{"2025":{"EIMP":2,"IND":5},"2026":{"EIMP":6,"IND":1,"PELOA":1,"PRE":1,"REQ":1}},"6":{"2024":{"APL":1},"2025":{"APL":7,"APLC":1,"EM":1,"EIMP":2,"IND":4,"INDV":2,"MOC":1,"REQ":11,"REQV":8},"2026":{"APL":5,"EIMP":9,"PDL":1,"PELOA":1,"PRE":1,"REQ":6,"REQV":11}},"7":{"2025":{"APL":4,"EIMP":2,"IND":20,"PDL":1,"REQ":11,"REQV":1},"2026":{"APL":5,"EIMP":3,"IND":10,"PDL":1,"PELOA":1,"PRE":1,"REQ":4}},"8":{"2025":{"APL":2,"EIMP":2,"IND":3,"INDV":4,"PDL":2,"REQ":44,"REQV":34},"2026":{"APL":3,"EIMP":5,"IND":13,"INDV":4,"REQ":24,"REQV":8}},"9":{"2024":{"APL":1},"2025":{"IND":1,"PDL":3}}},"proj":[[12028,"APL",1,2025,"2025-01-23","Concede isenção de IPTU e Taxa de Coleta de Lixo para pessoas com TEA (Transtorno do Espectro Autista).",[3],1],[12050,"APL",2,2025,"2025-02-12","Declara de Utilidade Pública no âmbito Municipal a Associação Cross Off-Road de Jipeiros e Trilheiros da Lapa e dá outras providências.",[8],1],[12078,"APL",3,2025,"2025-02-25","Denomina de \"Estrada Ivete da Silva Mayer\", o logradouro público conforme especifica\".",[6],1],[12079,"APL",4,2025,"2025-02-25","Altera a denominação de logradouro público municipal.",[6],1],[12109,"APL",5,2025,"2025-03-13","Altera o anexo I da Lei Municipal nº 3933, de 13 de maio de 2022, que estabelece os cargos de Provimento em Comissão e a Estrutura Organizacional do Poder…",[],1],[12129,"APL",6,2025,"2025-03-19","Institui o Programa Emprega Aê, que incentiva as empresas prestadoras de serviço contratadas pela Prefeitura do Município da Lapa a contratarem jovens de 18 a…",[4],1],[12205,"APL",7,2025,"2025-04-08","Denomina de \"Beco João Kologe\" o logradouro público conforme especifica.",[6],1],[12234,"APL",8,2025,"2025-04-11","Autoriza o Poder Legislativo Municipal a adquirir o bem imóvel que especifica e dá outras providências.",[0,1,3,6],1],[12244,"APL",9,2025,"2025-04-14","Concede 1 (um) dia de folga remunerada aos servidores públicos municipais efetivos da data de seus aniversários e dá outras providências.",[4],1],[12254,"APL",10,2025,"2025-04-16","Dispõe sobre a proteção às abelhas nativas sem ferrão e o estímulo à polinização urbana e rural no Município da Lapa, Paraná, e dá outras providências.",[6],1],[12392,"APL",11,2025,"2025-05-23","Denomina de \"Estrada Alfredo Klainchmidt\" o logradouro público conforme especifica.",[6],1],[12443,"APL",12,2025,"2025-06-06","Inclui parágrafo único no Artigo 8º da lei municipal nº 4386, de 04 de junho de 2025, que institui o Programa Emprega Aê e dá outras providências.",[4],1],[12543,"APL",13,2025,"2025-06-16","Institui no Município da Lapa a Semana da Capoeira, e dá outras providências.",[3],1],[12497,"APL",14,2025,"2025-06-17","Denomina de “Estrada Olívio Fávaro” o logradouro público conforme especifica.",[1],1],[12656,"APL",15,2025,"2025-07-22","Cria o Programa \"Recomeçar\", que estabelece a priorização e preferência de vagas às mulheres vítimas de violência domestica e familiar em cursos livres de…",[0],1],[12690,"APL",16,2025,"2025-08-01","Estabelece a obrigatoriedade de atendimento prioritário e presencial aos idosos nos terminais de autoatendimento bancário, visando prevenção de fraudes e…",[4],1],[12703,"APL",17,2025,"2025-08-04","Dispõe sobre a inclusão do aniversário do Assentamento Contestado, comemorado no dia 07 de fevereiro, no Calendário Oficial de Eventos do Município da…",[2],1],[12720,"APL",18,2025,"2025-08-07","Declara de Utilidade Pública no âmbito Municipal a Associação Wolgadeutschen de Mariental (AWOM) e dá outras providências.",[1],1],[12724,"APL",19,2025,"2025-08-08","Denomina de \"Estrada Ana Jacira Mildemberg\", a estrada rural que especifica.",[4],1],[12768,"APL",20,2025,"2025-08-21","Institui o Programa Municipal de Formação Continuada e Qualificação Técnica dos Conselheiros Tutelares da Lapa/PR, e dá outras providências.",[7],1],[12769,"APL",21,2025,"2025-08-21","Declara de Utilidade Pública no âmbito Municipal a ASBENER - Assistência Social Beneficente Ebenezer e dá outras providências.",[7],1],[12833,"APL",22,2025,"2025-08-27","Dispõe sobre a criação da Rede Municipal de Cursinhos Populares no Município da Lapa, institui o Comitê intersetorial da Rede Municipal de Cursinhos Populares…",[2],1],[12870,"APL",23,2025,"2025-09-22","Dispõe sobre a distribuição gratuita de sensores digitais de monitoramento contínuo de glicose pelo Sistema Único de Saúde - SUS às crianças e adolescentes…",[3],1],[12942,"APL",24,2025,"2025-10-10","Denomina de \"Beco Pedro de Oliveira Rosa\" o logradouro público conforme especifica.",[6],1],[12962,"APL",25,2025,"2025-10-16","Cria o Programa \"Amigos da Saúde\" no Município da Lapa, com intuito de desburocratizar o apoio da comunidade na manutenção, compra de equipamentos e remédios…",[7],1],[13000,"APL",26,2025,"2025-10-29","Institui o \"Programa Cãopartilha\", que cria o \"Banco de Ração e Acessórios para Animais\" no Município da Lapa e dá outras providências.",[4],1],[13046,"APL",27,2025,"2025-11-11","Institui a Semana da Consciência Negra no Município da Lapa, e dá outras providências.",[3],1],[13069,"APL",28,2025,"2025-11-13","Estabelece a criação do Fundo Municipal de Proteção e Bem-Estar Animal, destinado a financiar programas de esterilização, adoção e educação sobre o bem-estar…",[1],1],[13070,"APL",29,2025,"2025-11-13","Altera os incisos II e III do artigo 3º da Lei nº 2251, de 2o de novembro de 2008.",[1],1],[13073,"APL",30,2025,"2025-11-14","Autoriza o uso dos veículos de transporte escolar da Secretaria Municipal de Educação e Esportes, para o transporte de atletas e delegações esportivas, e dá…",[7],1],[13085,"APL",31,2025,"2025-11-19","Dá denominação de JENNIFER CNOSSEN SILVA, a Rua que desce para o antigo Clube América FC do Núcleo Leiteiro, e dá outras providências.",[3],1],[13116,"APL",32,2025,"2025-11-26","Altera o inciso VIII do artigo 1º da Lei nº 2748, de 26 de junho de 2012.",[8],1],[13131,"APL",33,2025,"2025-12-02","Altera o artigo 1º, 5º, 6º e 7º, revoga os artigos 2º, 3º e 4º, todos da lei nº 3935, de 19 de maio de 2022, que dispõe sobre a comercialização, queima e…",[3],1],[12288,"APLC",1,2025,"2025-04-29","Altera o artigo 172 da Lei nº 3701, de 20 de março de 2020, que dispõe sobre o Código de Posturas do Município da Lapa e dá outras providências.",[6],1],[12454,"APLC",2,2025,"2025-06-05","Concede isenção de IPTU para pessoas com TEA (Transtorno do Espectro Autista).",[3],1],[12930,"APLC",3,2025,"2025-10-06","Altera o artigo 1º, 4º, 5º, 6º e 7º, altera o § 1º do artigo 3º, revoga os § 2º e § 3º do artigo 3º, todos da Lei nº 3935, de 19 de maio de 2022, que dispõe…",[3],1],[12224,"MOC",1,2025,"2025-04-08","Moção de Apoio à Excelentíssima Deputada Ana Júlia Ribeiro , que foi alvo de ataques misóginos e desrespeitosos por parte do Deputado Ricardo Arruda (PL),…",[2],1],[12308,"MOC",2,2025,"2025-05-06","Moção de Aplausos ao jovem Izaque Proroki, da localidade de Rio da Areia, por sua notável ascensão como o novo rosto da campanha publicitária da Nescau.",[2],1],[12342,"MOC",3,2025,"2025-05-13","Moção de Aplausos à equipe de futsal feminino do Colégio Cívico Militar Manoel Antonio da Cunha (Polivalente) campeãs regionais da fase dos Jogos Escolares do…",[2],1],[12343,"MOC",4,2025,"2025-05-13","Moção de Aplausos a Jovem Amanda Oliva, atleta de Wushu sanda, que irá representar o Brasil no 9º Campeonato Sul Americano que ocorrerá na cidade de Buenos…",[2],1],[12354,"MOC",5,2025,"2025-05-15","Moção de Repúdio a Ação Direta de Inconstitucionalidade (ADI) nº 7796, ajuizada perante o Supremo Tribunal Federal (STF) pela Federação Brasileira das…",[3],1],[12396,"MOC",6,2025,"2025-05-26","Moção de Repúdio ao Deputado Estadual Renato Freitas (PT), pelos graves e irresponsáveis ataques proferidos durante discurso realizado na sessão do dia 19 de…",[0],1],[12670,"MOC",7,2025,"2025-07-22","Moção de Aplausos a senhora Adriana da Silva Alexandre, por sua notável trajetória e contribuição à literatura, educação e cultura.",[2],1],[12867,"MOC",8,2025,"2025-09-17","Moção de Aplauso 08/2025 de autoria do Vereador Bruno Bux ao 3º Sargento Cleverson José Paes Garret e ao Soldado Alex de Lima.",[2],1],[12865,"MOC",9,2025,"2025-09-17","Moção de Aplauso 09/2025 de autoria do Vereador Bruno Bux à Professora Maria Edith Ganzert Pierin.",[2],1],[12884,"MOC",10,2025,"2025-09-23","Moção de Aplauso 10/2025 ao atleta lapeano Emanuel Pinto Meira.",[2],1],[12893,"MOC",11,2025,"2025-09-23","Moção de Aplauso 11/2025 à Sra. Cláudia Ferreira Santos Rocha.",[2],1],[12887,"MOC",12,2025,"2025-09-23","Moção de Aplauso 12/2025 ao atleta lapeano Matheus Duda.",[2],1],[12899,"MOC",13,2025,"2025-09-26","Moção de Apoio nº 13/2025 de autoria do Vereador Mário Jorge Padilha Santos ao Policial Cabo Nepomoceno, lotado no 28º Batalhão de Polícia Militar.",[6],1],[12938,"MOC",14,2025,"2025-10-08","Moção de Aplausos ao atleta lapeano Fernando Carvalho Tenório, pela brilhante conquista da medalha de ouro na Copa Brasil B2/B3 de Futebol Adaptado.",[3],1],[12998,"MOC",15,2025,"2025-10-24","Moção de Apoio ao Projeto de Decreto Legislativo n° 845/2025, apresentado pelo Senador Flavio Arns, que busca sustar os efeitos do Decreto nº 12.686, de 20 de…",[],1],[13014,"MOC",16,2025,"2025-11-03","Moção de apoio e parabenização ao estudantes da rede estadual de ensino do Município da Lapa, selecionados para participar da edição 2026 do Programa Ganhando…",[4],1],[13045,"MOC",17,2025,"2025-11-11","Moção de Aplausos nº 17/2025 de autoria da Vereadora às mães atípicas Ediane Joslin e Kayle Ferraz pela organização do 2º Encontro Autista da Lapa, ocorrido…",[3],1],[11964,"PDL",1,2025,"2025-01-09","Concede o título de Cidadão Honorário da Lapa ao Promotor de Justiça, Dr. GUILHERME LAPA WERNER.",[1],1],[12025,"PDL",2,2025,"2025-01-23","Concede Título de Cidadão Honorário ao Sr. Carlos Roberto Massa Júnior.",[9],1],[12026,"PDL",3,2025,"2025-01-23","Concede Título de Cidadão Honorário ao Sr. HUSSEIN BAKRI.",[9],1],[12027,"PDL",4,2025,"2025-01-23","Concede Título de Cidadão Honorário ao Sr. CARLOS ALBERTO GEBRIM (BETO PRETO).",[9],1],[12052,"PDL",5,2025,"2025-02-13","Concede título de Cidadão Honorário da Lapa ao Sr. Alexandre Maranhão Khury.",[1],1],[12051,"PDL",6,2025,"2025-02-13","Concede título de Cidadão Honorário da Lapa ao Dr. Guilherme Fernandes Graziani.",[1],1],[12355,"PDL",7,2025,"2025-05-13","Concede o Título de Cidadã Benemérita à Sra. Neiva Ione Correa da Silva.",[2],1],[12356,"PDL",8,2025,"2025-05-15","Concede o título de Cidadã Benemérita à Sra. Maria Antonieta Bitencourt.",[2],1],[12805,"PDL",9,2025,"2025-09-02","Delibera sobre as Contas do Poder Executivo, referente ao Exercício Financeiro de 2023.",[],1],[12945,"PDL",10,2025,"2025-10-10","Concede Título de Cidadão Benemérito da Lapa ao senhor Elói Fávaro.",[4],1],[12981,"PDL",11,2025,"2025-10-20","Concede o título de Cidadão Honorário da Lapa ao ENIO JOSÉ VERRI.",[2],1],[13072,"PDL",12,2025,"2025-11-14","Concede o título de Cidadã Honorária da Lapa à senhora Ana Luiza de Oliveira Tauchen.",[7],1],[13145,"PDL",13,2025,"2025-12-05","Concede Título de Cidadão Honorário ao Reverendo Padre Elves Allano Perrony, pároco da Paroquia Santo Antônio da Lapa.",[8],1],[13146,"PDL",14,2025,"2025-12-05","Concede Título de Cidadão Benemérito ao senhor Leori José de Morais Trindade.",[8],1],[11998,"PRE",1,2025,"2025-01-23","Autoriza o remanejamento de verbas conforme demonstrativo do setor de Contabilidade desta Casa de Leis.",[],1],[12232,"PRE",2,2025,"2025-04-10","Autoriza o remanejamento de verbas conforme demonstrativo do setor de Contabilidade desta Casa de Leis.",[],1],[12236,"PRE",3,2025,"2025-04-10","Estabelece normas para a liberação de diárias para custear despesas de alimentação, hospedagem e locomoção urbana para Vereadores e demais servidores do Poder…",[],1],[12317,"PRE",4,2025,"2025-05-08","Institui a Língua Brasileira de Sinais (Libras) e a tradução simultânea dos trabalhos parlamentares nas sessões da Câmara Municipal da Lapa.",[],1],[12417,"PRE",5,2025,"2025-05-30","Autoriza o remanejamento de verbas conforme demonstrativo do setor de Contabilidade desta Casa de Leis.",[],1],[12565,"PRE",6,2025,"2025-07-04","Projeto de Resolução nº 06/2025 que Aprova o Orçamento do Poder Legislativo Municipal, a ser incluído no Orçamento Financeiro Geral do Município para o…",[],1],[12961,"PRE",7,2025,"2025-10-14","Estabelece normas para a liberação de diárias para custear despesas de alimentação, hospedagem e locomoção urbana para Vereadores e demais servidores do Poder…",[],1],[13271,"APL",1,2026,"2026-02-13","Denomina de \"Rua João Vitor Rodrigues Guimarães\", o logradouro público conforme especifica.",[7],1],[13272,"APL",2,2026,"2026-02-19","Declara de Utilidade Pública no âmbito municipal a Associação Atlética Ferroviária da Lapa e dá outras providências.",[7],1],[13290,"APL",3,2026,"2026-02-24","Denomina de \"Rua Osvaldo de Jesus Martins\", a rua Municipal que especifica.",[4],1],[13306,"APL",4,2026,"2026-02-25","Dispõe sobre a criação do Programa Municipal de Esporte Inclusivo para Pessoas com Deficiência e Pessoas com Transtorno do Espectro Autista (TEA) no Município…",[7],1],[13308,"APL",5,2026,"2026-02-26","Denomina de \"Rua Remi Pacheco Camargo\", a rua Municipal que especifica.",[4],1],[13395,"APL",6,2026,"2026-03-18","Institui a Carteira de Identificação da Pessoa com Fibromialgia no âmbito do Município da Lapa-PR e dá outras providências.",[3],1],[13404,"APL",7,2026,"2026-03-24","Autoriza o Município da Lapa a receber o selo de \"Capital Nacional do Biocombustível\" e dá outras providências.",[0],1],[13452,"APL",8,2026,"2026-03-31","Altera o inciso VIII do artigo 1º da Lei nº 2748, de 26 de junho de 2012.",[8],1],[13486,"APL",9,2026,"2026-04-08","Denomina de \"Estrada Francisco Feltrin\" o logradouro público conforme especifica.",[6],1],[13515,"APL",10,2026,"2026-04-27","Denomina de \"Rua Pedro Henrique Druscz\", a rua Municipal que especifica.",[4],1],[13516,"APL",11,2026,"2026-04-27","Denomina de \"Rua João Maria Fernandes de Barros\", a rua Municipal que especifica.",[4],1],[13547,"APL",12,2026,"2026-05-11","Denomina de \"Estrada Manoel Francisco Lourenço Vieira\", o logradouro público conforme especifica.",[7],1],[13617,"APL",13,2026,"2026-05-29","Declara de Utilidade Pública Municipal o CTG Mate Amargo - Centro de Tradições Gaúchas de Lapa/PR, e dá outras providências.",[6],1],[13699,"APL",14,2026,"2026-06-24","Dispõe sobre a obrigatoriedade de notificação a Companhia de Saneamento do Paraná - SANEPAR quando da realização de obras de pavimentação.",[1],1],[13700,"APL",15,2026,"2026-06-24","Denomina de Rua Francisco Wolf o logradouro público municipal que especifica.",[1],1],[13737,"APL",16,2026,"2026-07-06","Institui a honraria \"Título de Jovem Destaque da Lapa\", destinada ao reconhecimento e valorização de jovens que se destacam em suas áreas de atuação, e dá…",[4],1],[13820,"APL",17,2026,"2026-07-28","Acrescenta a alínea \"M\" ao inciso I do artigo 1º da Lei Municipal nº 2748/2012.",[1],1],[13858,"APL",18,2026,"2026-08-04","\"Dispõe sobre a instituição de diretrizes para promoção de Soluções Baseadas na Natureza (SbN) no manejo das águas pluviais e incentiva a adoção de jardins de…",[2],1],[13879,"APL",19,2026,"2026-08-06","Altera a Lei Municipal nº 3.814, de 29 de junho de 2021, para estabelecer mecanismos de transparência e publicidade na execução do Programa \"Bem Rural\", e dá…",[2],1],[13924,"APL",20,2026,"2026-08-19","Denomina de \"Rua Miguel Camargo Neto\", o logradouro público conforme especifica.",[6],1],[13925,"APL",21,2026,"2026-08-20","Denomina de \"Rua Benedito Casado Lopes\" o logradouro público conforme especifica.",[6],1],[13956,"APL",22,2026,"2026-08-27","Declara de Utilidade Pública no âmbito Municipal a Associação Parque Tecnológico Socio-Agro-Bio-Ecológico Sabe-Tec da Lapa e dá outras providências.",[0],1],[13991,"APL",23,2026,"2026-09-08","Declara utilidade pública no âmbito Municipal a Associação Comercial, Industrial e Agropecuária da Lapa (ACIAL), e dá outras providências.",[7],1],[14084,"APL",24,2026,"2026-09-22","\"Declara de Utilidade Pública Municipal a Associação Cultural e Religiosa dos Moradores da Campina Vermelha, e dá outras providências.\"",[8],1],[14149,"APL",25,2026,"2026-10-01","Denomina de \"Rua Maria das Dores Silva de Toledo\" o logradouro público conforme especifica.",[6],1],[14167,"APL",26,2026,"2026-10-06","Denomina de \"Estrada Marlene Deda de Camargo\" o logradouro público conforme especifica.",[8],1],[14171,"APL",27,2026,"2026-10-09","Revoga a Lei nº 1964, de 27 de junho de 2006, que incluiu artigo na Lei Municipal nº 1774, de 31 de março de 2004, que dispõe sobre Quadro de Pessoal e…",[],1],[14180,"APL",28,2026,"2026-10-13","Denomina de \"Estrada Jaziele Terezinha dos Santos\", a estrada municipal que especifica.",[4],1],[13508,"APLC",1,2026,"2026-04-15","Inclui o parágrafo segundo ao artigo 27 da Lei nº 3701, de 20 de março de 2020, que dispõe sobre o Código de Posturas do Município da Lapa.",[1],1],[13511,"APLC",2,2026,"2026-04-16","Altera o § 3º do artigo 33 da Lei Municipal nº 3701/2020, que dispõe sobre o Código de Posturas do Município da Lapa e dá outras providências.",[2],1],[13458,"MOC",1,2026,"2026-03-31","Moção de Aplauso 01/2026 à Sra. Luciellen d'Avila Kobachuk.",[2],1],[13641,"MOC",2,2026,"2026-06-09","Moção de Aplausos à Senhora Flávia Jeanne Ferrari, em reconhecimento à sua eleição e posse como Presidente da Seção Paraná da Associação Brasileira de…",[2],1],[13642,"MOC",3,2026,"2026-06-09","Moção de Aplauso à Associação Wolgadeutschen de Mariental, em reconhecimento à relevante atuação na preservação da cultura.",[2],1],[13643,"MOC",4,2026,"2026-06-09","Moção de Aplauso à estudante Vitória Silva Costa, em reconhecimento à sua destacada trajetória estudantil.",[2],1],[13402,"PDL",1,2026,"2026-03-20","Concede o título de Cidadão Benemérito ao Sr. Luiz Roberto Bruel.",[2],1],[13546,"PDL",2,2026,"2026-05-11","Concede o título de Cidadã Benemérita da Lapa à senhora Jociana Campanholo.",[7],1],[13812,"PDL",3,2026,"2026-07-28","Concede Título de Cidadã Benemérita à Senhora Marly Weiss da Silveira.",[6],1],[14181,"PDL",4,2026,"2026-10-13","Concede o Título de Cidadão Benemérito da Lapa ao senhor Sandro Guzzoni.",[4],1],[13256,"PELOA",1,2026,"2026-02-10","Altera a redação dos parágrafos 1º e 3º do artigo 30 da Lei Orgânica Municipal.",[0,1,2,3,4,5,6,7],1],[14011,"PELOA",2,2026,"2026-09-15","Altera dispositivos da Lei Orgânica do Município da Lapa PR.",[],1],[13257,"PRE",1,2026,"2026-02-10","Altera os artigos 28 e 29 do Regimento Interno do Poder Legislativo da Lapa.",[0,1,2,3,4,5,6,7],1],[13338,"PRE",2,2026,"2026-03-03","Inclui o § 7º no artigo 15 da Resolução nº 83, de 13 de maio de 2015, que fixa as normas para a verificação dos critérios de Avaliação do Estágio Probatório e…",[],1],[13374,"PRE",3,2026,"2026-03-11","Altera e inclui o inciso XII aos artigos 48 e 53 do Regimento Interno do Poder Legislativo da Lapa.",[],1],[13654,"PRE",4,2026,"2026-06-12","Autoriza o remanejamento de verbas conforme demonstrativo do setor de Contabilidade desta Casa de Leis.",[],1],[13732,"PRE",5,2026,"2026-07-03","Aprova o Orçamento do Poder Legislativo Municipal, a ser incluído no Orçamento Financeiro Geral do Município para o Exercício Financeiro de 2027.",[],1],[14133,"PRE",6,2026,"2026-09-24","Revoga a Resolução 83/2015 e fixa as normas para a verificação dos critérios de Avaliação do Estágio Probatório e da Avaliação de Desempenho dos servidores…",[],1],[11923,"APL",29,2024,"2024-11-25","Denomina de “ESTRADA ARISTIDES DE MELO”, a Estrada Principal Rural na localidade do Marafigo.",[9],1],[11653,"APL",23,2024,"2024-08-06","Denomina de \"Rua Antônio Loures Ribeiro\", o logradouro municipal que especifica.",[6],1]],"tot":{"2024":{"APL":2},"2025":{"ACD":1,"AAP":6,"ASE":1,"ATA":40,"ASS":5,"ATAE":5,"APL":33,"APLC":3,"ELE":1,"EM":3,"EIMP":12,"ESG":1,"IND":297,"INDV":33,"MOC":17,"OF":8,"PDL":14,"PLO":163,"PRE":7,"PLC":14,"REQ":283,"RF":1,"REQV":140,"VET":1,"RA":2},"2026":{"ACD":1,"AAP":4,"ATA":31,"ASS":2,"ATAE":3,"APL":28,"APLC":2,"EM":1,"EIMP":69,"IND":292,"INDV":30,"MOC":4,"OF":2,"PDL":4,"PLO":89,"PELOA":2,"PRE":6,"PLC":1,"REQ":220,"RF":1,"REQV":88,"RA":1}},"tdesc":{"APL":"Anteprojeto de Lei","EIMP":"Emenda Parlamentar Impositiva","IND":"Indicação","INDV":"Indicação Verbal","MOC":"Moção","REQ":"Requerimento","REQV":"Requerimento Verbal","PELOA":"Projeto de Emenda à Lei Orgânica","PRE":"Projeto de Resolução","RA":"Recomendação Administrativa","PDL":"Projeto de Decreto Legislativo","APLC":"Anteprojeto de Lei Complementar","EM":"Emenda Modificativa","OF":"Ofício","ESG":"Emenda Substitutiva Geral","PLO":"Projeto de Lei Ordinária","PLC":"Projeto de Lei Complementar"}};
+(function(){
+const D = DATA;
+const TIPOS = {1:"Ordinária",2:"Extraordinária",3:"Instalação",4:"Solene",5:"Preparatória",6:"Especial"};
+const CATS = [
+  {k:"lei", l:"Projetos de lei", s:["APL","APLC"], c:"var(--c1)"},
+  {k:"ind", l:"Indicações", s:["IND","INDV"], c:"var(--c2)"},
+  {k:"req", l:"Requerimentos", s:["REQ","REQV"], c:"var(--c3)"},
+  {k:"emd", l:"Emendas ao orçamento", s:["EIMP"], c:"var(--c4)"},
+  {k:"hom", l:"Títulos e moções", s:["PDL","MOC"], c:"var(--c5)"},
+  {k:"out", l:"Outros", s:null, c:"var(--c6)"}
+];
+const SIG2CAT = {}; CATS.forEach(c => (c.s||[]).forEach(s => SIG2CAT[s] = c.k));
+const LEG_START = 2025;
+
+const V = D.ver.map((v,i) => ({i, nome:v[0], partido:v[1], ativo:!!v[2], votos:v[3], completo:v[4], foto:(v[5]||"").replace(/^http:/,"https:")}));
+const S = D.sess.map(([id,data,tipo,num,p,j]) => ({id,data,ano:+data.slice(0,4),tipo,num,p,j,ok:p.includes("1")}));
+S.sort((a,b)=>a.data<b.data?-1:a.data>b.data?1:0);
+// janela de exercício: do primeiro registro de presença ao último (se não estiver mais ativo)
+V.forEach(v => {
+  const pres = S.filter(s => s.p[v.i]==="1");
+  v.ini = pres.length ? pres[0].data : "9999";
+  v.fim = v.ativo ? "9999" : (pres.length ? pres[pres.length-1].data : "0000");
+});
+const inMand = (v,d) => d>=v.ini && d<=v.fim;
+
+const fmtD = d => d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4);
+const pct = x => isFinite(x) ? x.toLocaleString("pt-BR",{maximumFractionDigits:1, minimumFractionDigits:1})+"%" : "—";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const title = n => n.toLowerCase().replace(/(^|\s)(\p{L})/gu,(m,a,b)=>a+b.toUpperCase()).replace(/\b(Do|Da|De|Dos|Das)\b/g,w=>w.toLowerCase());
+const initials = n => n.split(/\s+/).filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join("");
+const avatar = (v,lg) => `<span class="av${lg?" lg":""}" aria-hidden="true">${esc(initials(v.nome))}${v.foto?`<img src="${esc(v.foto)}" alt="" loading="lazy" onerror="this.remove()">`:""}</span>`;
+
+let P = "2026";
+try { const s = localStorage.getItem("cl-periodo"); if (s) P = s; } catch(e){}
+let SEL = 0, SORT = {k:"pres", dir:-1}, ONLYDIV = false, PA = "", PQ = "", PT = "", PLIM = 24;
+
+const inP = ano => P==="all" ? ano>=LEG_START : ano===+P;
+const yearsP = () => P==="all" ? Object.keys(D.tot).map(Number).filter(y=>y>=LEG_START) : [+P];
+
+function presenca(v){
+  const ss = S.filter(s => s.ok && inP(s.ano) && inMand(v,s.data));
+  let pr=0, js=0;
+  ss.forEach(s => { if (s.p[v.i]==="1") pr++; else if (s.j[v.i]==="1") js++; });
+  return {tot:ss.length, pr, js, fa:ss.length-pr-js, pc: ss.length? pr/ss.length*100 : NaN, ss};
+}
+function props(v){
+  const out = {lei:0,ind:0,req:0,emd:0,hom:0,out:0,total:0};
+  const c = D.cnt[v.i] || {};
+  yearsP().forEach(y => Object.entries(c[y]||{}).forEach(([s,n]) => { out[SIG2CAT[s]||"out"] += n; out.total += n; }));
+  return out;
+}
+function nominais(){ return D.nom.filter(n => inP(+n[0].slice(0,4))).sort((a,b)=>a[0]<b[0]?1:a[0]>b[0]?-1:0); }
+function isDiv(n){ return /[NA]/.test(n[5]) && /S/.test(n[5]); }
+
+function rows(){
+  return V.filter(v => S.some(s=>inP(s.ano) && inMand(v,s.data))).map(v => {
+    const p = presenca(v), q = props(v);
+    return {v, p, q, pres:p.pc, js:p.js, fa:p.fa, lei:q.lei, ind:q.ind, req:q.req, emd:q.emd, hom:q.hom, total:q.total, nome:v.nome};
+  });
+}
+
+function renderMeta(){
+  document.getElementById("meta").innerHTML =
+    `<span>Atualizado em <b>${fmtD(D.ger.slice(0,10))}</b></span><span>Fonte: <b>SAPL da Câmara Municipal da Lapa</b></span><span>Licença <b>CC BY-SA 4.0</b></span>`;
+  document.getElementById("gen").textContent = "Dados extraídos da API pública do SAPL em " + fmtD(D.ger.slice(0,10)) + ".";
+}
+
+function renderKPIs(R){
+  const ss = S.filter(s => s.ok && inP(s.ano));
+  const ativos = R.filter(r => r.v.ativo);
+  const media = ativos.reduce((a,r)=>a+r.p.pr,0) / Math.max(1, ativos.reduce((a,r)=>a+r.p.tot,0)) * 100;
+  const totProps = R.reduce((a,r)=>a+r.total,0);
+  const leis = R.reduce((a,r)=>a+r.lei,0);
+  const nn = nominais();
+  const lbl = P==="all" ? "na legislatura" : "em "+P;
+  document.getElementById("kpis").innerHTML = [
+    [ss.length, `sessões plenárias ${lbl}`],
+    [pct(media), "presença média dos vereadores"],
+    [totProps.toLocaleString("pt-BR"), `proposições dos vereadores, ${leis} delas anteprojetos de lei`],
+    [nn.length, `votações nominais, ${nn.filter(isDiv).length} com voto divergente`]
+  ].map(([v,l]) => `<div class="kpi"><span class="v num">${v}</span><span class="l">${l}</span></div>`).join("");
+}
+
+function renderLegend(){
+  document.getElementById("legend").innerHTML = '<span class="eyebrow">Composição das proposições:</span>' +
+    CATS.map(c => `<span><i style="background:${c.c}"></i>${c.l}</span>`).join("");
+}
+
+function renderTable(R){
+  const k = SORT.k, d = SORT.dir;
+  R.sort((a,b) => {
+    const x=a[k], y=b[k];
+    if (typeof x === "string") return x.localeCompare(y)*d;
+    return ((isNaN(x)?-1:x) - (isNaN(y)?-1:y))*d || a.nome.localeCompare(b.nome);
+  });
+  const maxT = Math.max(1, ...R.map(r=>r.total));
+  const cols = [["nome","Vereador",""],["pres","Presença",""],["js","Faltas just.","r"],["fa","Faltas sem just.","r"],
+    ["lei","Projetos de lei","r"],["ind","Indicações","r"],["req","Requerimentos","r"],["emd","Emendas","r"],["hom","Títulos e moções","r"],["total","Total de proposições",""]];
+  const th = cols.map(([key,l,cl]) => `<th class="sort ${cl}" data-k="${key}" tabindex="0" aria-sort="${SORT.k===key?(SORT.dir>0?"ascending":"descending"):"none"}">${l}</th>`).join("");
+  const tb = R.map(r => {
+    const p = r.p;
+    const w1 = p.tot? p.pr/p.tot*100:0, w2 = p.tot? p.js/p.tot*100:0;
+    const stack = CATS.map(c => r.q[c.k] ? `<i style="width:${r.q[c.k]/maxT*100}%;background:${c.c}" title="${c.l}: ${r.q[c.k]}"></i>` : "").join("");
+    return `<tr class="click${r.v.i===SEL?" sel":""}" data-i="${r.v.i}" tabindex="0">
+      <td><div class="who">${avatar(r.v)}<div><div class="n">${esc(title(r.v.nome))}</div><div class="p">${esc(r.v.partido)} ${r.v.ativo?"":'<span class="tag off">fora do mandato</span>'}</div></div></div></td>
+      <td><div class="pbar"><span class="track"><i style="width:${w1}%;background:var(--accent)"></i><i style="width:${w2}%;background:var(--just)"></i></span><span class="pct num">${pct(p.pc)}</span></div><div class="muted num" style="font-size:.76rem">${p.pr} de ${p.tot} sessões</div></td>
+      <td class="r num">${r.js}</td><td class="r num">${r.fa}</td>
+      <td class="r num">${r.lei}</td><td class="r num">${r.ind}</td><td class="r num">${r.req}</td><td class="r num">${r.emd}</td><td class="r num">${r.hom}</td>
+      <td><div style="display:flex;align-items:center;gap:8px"><span class="stack" style="flex:1">${stack}</span><b class="num">${r.total}</b></div></td></tr>`;
+  }).join("");
+  const t = document.getElementById("tv");
+  t.innerHTML = `<thead><tr>${th}</tr></thead><tbody>${tb}</tbody>`;
+  t.querySelectorAll("th.sort").forEach(h => {
+    const go = () => { const key=h.dataset.k; SORT = {k:key, dir: SORT.k===key ? -SORT.dir : (key==="nome"?1:-1)}; renderAll(); };
+    h.onclick = go; h.onkeydown = e => { if (e.key==="Enter"||e.key===" ") { e.preventDefault(); go(); } };
+  });
+  t.querySelectorAll("tr.click").forEach(tr => {
+    const go = () => { SEL = +tr.dataset.i; renderAll(); document.getElementById("perfil").scrollIntoView({behavior:"smooth",block:"start"}); };
+    tr.onclick = go; tr.onkeydown = e => { if (e.key==="Enter") go(); };
+  });
+}
+
+function renderProfile(R){
+  const sel = document.getElementById("selv");
+  sel.innerHTML = V.map(v => `<option value="${v.i}" ${v.i===SEL?"selected":""}>${esc(title(v.nome))}${v.ativo?"":" (fora do mandato)"}</option>`).join("");
+  const v = V[SEL], p = presenca(v), q = props(v);
+  const strip = p.ss.map(s => {
+    const st = s.p[v.i]==="1" ? "var(--accent)" : s.j[v.i]==="1" ? "var(--just)" : "var(--falta)";
+    const tx = s.p[v.i]==="1" ? "presente" : s.j[v.i]==="1" ? "falta justificada" : "ausente";
+    return `<i style="background:${st}" title="${fmtD(s.data)} · ${s.num}ª Sessão ${TIPOS[s.tipo]||""} · ${tx}"></i>`;
+  }).join("");
+  const proj = D.proj.filter(x => x[6].includes(v.i) && inP(x[3])).sort((a,b)=>a[4]<b[4]?1:-1);
+  const vots = nominais().filter(n => n[5][v.i] !== "." && inMand(v,n[0]));
+  const contra = vots.filter(n => (n[5][v.i]==="N" || n[5][v.i]==="A") && isDiv(n));
+  const sim = vots.filter(n=>n[5][v.i]==="S").length, nao = vots.filter(n=>n[5][v.i]==="N").length, nv = vots.filter(n=>n[5][v.i]==="-").length;
+  const status = v.ativo ? "" : `<div class="tag off">Último registro de presença em ${fmtD(v.fim)}</div>`;
+  document.getElementById("prof").innerHTML = `
+    <div class="p-head">${avatar(v,true)}<div class="t"><h3>${esc(title(v.nome))}</h3>
+      <div class="muted">${esc(title(v.completo))} · ${esc(v.partido)}${v.votos?` · eleito(a) com <span class="num">${v.votos.toLocaleString("pt-BR")}</span> votos`:""}</div>${status}</div></div>
+    <div class="p-stats">
+      <div style="border-color:var(--accent)"><b class="num">${pct(p.pc)}</b><span>presença (${p.pr} de ${p.tot})</span></div>
+      <div style="border-color:var(--just)"><b class="num">${p.js}</b><span>faltas justificadas</span></div>
+      <div style="border-color:var(--falta)"><b class="num">${p.fa}</b><span>faltas sem justificativa</span></div>
+      <div style="border-color:var(--c1)"><b class="num">${q.total}</b><span>proposições no período</span></div>
+      <div style="border-color:var(--c5)"><b class="num">${sim}/${nao}/${nv}</b><span>votos nominais sim / não / não votou</span></div>
+    </div>
+    <div style="display:grid;gap:8px"><div class="eyebrow">Presença sessão a sessão</div><div class="strip">${strip||'<span class="empty">Sem sessões no período.</span>'}</div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>presente</span><span><i style="background:var(--just)"></i>falta justificada</span><span><i style="background:var(--falta)"></i>ausente</span></div></div>
+    <div class="cols">
+      <div style="display:grid;gap:8px;align-content:start;min-width:0"><div class="eyebrow">Projetos, títulos e moções de autoria (${proj.length})</div>
+        ${proj.length? `<ul class="list">${proj.slice(0,12).map(x=>`<li><span class="id">${x[1]} ${x[2]}/${x[3]} · ${fmtD(x[4])} · ${themeOf(x)}</span><span>${esc(x[5])}</span></li>`).join("")}</ul>${proj.length>12?`<a href="#projetos" data-a="${v.i}" class="seeall">Ver todos os ${proj.length}</a>`:""}` : '<p class="empty">Nenhum projeto, título ou moção no período.</p>'}
+      </div>
+      <div style="display:grid;gap:8px;align-content:start;min-width:0"><div class="eyebrow">Votos contra a maioria ou abstenções (${contra.length})</div>
+        ${contra.length? `<ul class="list">${contra.map(n=>`<li><span class="id">${fmtD(n[0])} · ${esc(n[2])} · votou <b>${n[5][v.i]==="N"?"Não":"Abstenção"}</b> · resultado: ${esc(n[4])}</span><span>${esc(n[3])}</span></li>`).join("")}</ul>` : `<p class="empty">Nas ${vots.length} votações nominais em que participou no período, acompanhou a maioria.</p>`}
+      </div>
+    </div>`;
+  const sa = document.querySelector("#prof .seeall");
+  if (sa) sa.onclick = () => { PA = String(v.i); PLIM = 999; renderProjects(); };
+}
+
+function renderVotes(){
+  const vs = V.filter(v => D.nom.some(n => inP(+n[0].slice(0,4)) && n[5][v.i] !== "." ) || (v.ativo));
+  let nn = nominais(); if (ONLYDIV) nn = nn.filter(isDiv);
+  const head = `<thead><tr><th>Data</th><th>Matéria</th><th>Resultado</th>${vs.map(v=>`<th class="v" title="${esc(title(v.nome))}">${esc(initials(v.nome))}</th>`).join("")}</tr></thead>`;
+  const body = nn.map(n => {
+    const rc = /^Aprovado/.test(n[4]) ? "ap" : /Reprovado/.test(n[4]) ? "rp" : "ot";
+    const cells = vs.map(v => {
+      const c = n[5][v.i];
+      if (!inMand(v,n[0])) return `<td class="v"><span class="chip O" title="Fora do mandato">·</span></td>`;
+      const m = {S:["S","Sim"],N:["N","Não"],A:["A","Abst."],"-":["X","N/V"],".":["O","—"]}[c] || ["O","—"];
+      return `<td class="v"><span class="chip ${m[0]}" title="${esc(title(v.nome))}: ${m[1]}">${m[1]}</span></td>`;
+    }).join("");
+    return `<tr class="${isDiv(n)?"div":""}"><td class="num" style="white-space:nowrap">${fmtD(n[0])}</td><td class="mat"><b>${esc(n[2])}</b><div>${esc(n[3])}</div></td><td><span class="res ${rc}">${esc(n[4])}</span></td>${cells}</tr>`;
+  }).join("");
+  document.getElementById("tvt").innerHTML = head + `<tbody>${body || `<tr><td colspan="${3+vs.length}" class="empty">Nenhuma votação nominal neste filtro.</td></tr>`}</tbody>`;
+}
+
+function themeOf(x){
+  const e = x[5], s = x[1];
+  if (/denomin/i.test(e)) return "Nome de rua";
+  if (/utilidade p[úu]blica/i.test(e)) return "Utilidade pública";
+  if (s==="MOC" || (s==="PDL" && /t[íi]tulo/i.test(e))) return "Títulos e moções";
+  if (s==="PRE" || s==="PELOA" || /Poder Legislativo|Casa de Leis|Regimento/i.test(e)) return "Funcionamento da Câmara";
+  return "Políticas e leis";
+}
+const THEMES = ["Políticas e leis","Nome de rua","Utilidade pública","Títulos e moções","Funcionamento da Câmara"];
+
+function renderProjects(){
+  const fa = document.getElementById("fa");
+  fa.innerHTML = `<option value="">Todos os autores</option>` + V.map(v=>`<option value="${v.i}" ${String(v.i)===PA?"selected":""}>${esc(title(v.nome))}</option>`).join("") + `<option value="m" ${PA==="m"?"selected":""}>Mesa Executiva / outros</option>`;
+  let L = D.proj.filter(x => inP(x[3]));
+  const counts = {}; L.forEach(x => { const t=themeOf(x); counts[t]=(counts[t]||0)+1; });
+  document.getElementById("ft").innerHTML = `<button data-t="" aria-pressed="${PT===""}">Todos os temas · ${L.length}</button>` +
+    THEMES.map(t => `<button data-t="${t}" aria-pressed="${PT===t}">${t} · ${counts[t]||0}</button>`).join("");
+  document.querySelectorAll("#ft button").forEach(b => b.onclick = () => { PT = b.dataset.t; PLIM = 24; renderProjects(); });
+  if (PA==="m") L = L.filter(x => !x[6].length); else if (PA!=="") L = L.filter(x => x[6].includes(+PA));
+  if (PT) L = L.filter(x => themeOf(x)===PT);
+  if (PQ) { const q = PQ.toLowerCase(); L = L.filter(x => (x[5]+" "+x[1]+" "+x[2]+"/"+x[3]).toLowerCase().includes(q)); }
+  L.sort((a,b)=>a[4]<b[4]?1:-1);
+  document.getElementById("pcount").textContent = L.length + (L.length===1?" item":" itens");
+  document.getElementById("plist").innerHTML = L.slice(0,PLIM).map(x => {
+    const by = x[6].length ? (x[6].length>4 ? "Vários vereadores" : x[6].map(i=>title(V[i].nome)).join(", ")) : "Mesa Executiva / outros";
+    return `<article class="pc"><div class="top"><b>${esc(D.tdesc[x[1]]||x[1])} ${x[2]}/${x[3]}</b><span class="num">${fmtD(x[4])}</span></div>
+      <span class="theme">${themeOf(x)}</span><p>${esc(x[5])}</p><span class="by">${esc(by)}</span></article>`;
+  }).join("") || '<p class="empty">Nenhum item com esses filtros.</p>';
+  const more = document.getElementById("pmore"); more.hidden = L.length <= PLIM;
+  more.textContent = `Mostrar mais (${L.length-PLIM})`;
+}
+
+function renderAll(){
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.p===P));
+  const R = rows();
+  renderKPIs(R); renderTable(R); renderProfile(R); renderVotes(); renderProjects();
+}
+
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => { P = b.dataset.p; try{localStorage.setItem("cl-periodo",P)}catch(e){}; PLIM=24; renderAll(); });
+document.getElementById("selv").onchange = e => { SEL = +e.target.value; renderAll(); };
+document.getElementById("onlydiv").onchange = e => { ONLYDIV = e.target.checked; renderVotes(); };
+document.getElementById("fa").onchange = e => { PA = e.target.value; PLIM=24; renderProjects(); };
+document.getElementById("fq").oninput = e => { PQ = e.target.value.trim(); PLIM=24; renderProjects(); };
+document.getElementById("pmore").onclick = () => { PLIM += 24; renderProjects(); };
+renderMeta(); renderLegend(); renderAll();
+})();
+</script>
+
+</body>
+</html>
