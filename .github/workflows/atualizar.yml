@@ -1,0 +1,25 @@
+name: Atualizar dados da Câmara
+on:
+  schedule:
+    - cron: "0 9 * * *"   # todo dia às 6h (horário de Brasília)
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - run: python coletar_dados.py
+      - run: python montar_pagina.py
+      - name: Salvar alterações
+        run: |
+          git config user.name "atualizador-automatico"
+          git config user.email "actions@users.noreply.github.com"
+          git add data.json index.html docs/index.html
+          git diff --cached --quiet || git commit -m "Atualiza dados da Câmara ($(date +%d/%m/%Y))"
+          git push
