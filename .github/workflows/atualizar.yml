@@ -1,7 +1,7 @@
 name: Atualizar dados da Câmara
 on:
   schedule:
-    - cron: "0 9 * * *"   # todo dia às 6h (horário de Brasília)
+    - cron: "17 9 * * *"   # todo dia às 6h17 (horário de Brasília)
   workflow_dispatch:
 permissions:
   contents: write
