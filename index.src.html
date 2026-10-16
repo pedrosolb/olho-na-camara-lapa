@@ -325,7 +325,7 @@ function rows(){
 
 function renderMeta(){
   document.getElementById("meta").innerHTML =
-    `<span>Atualizado em <b>${fmtD(D.ger.slice(0,10))}</b></span><span>Fonte: <b>SAPL da Câmara Municipal da Lapa</b></span><span>Licença <b>CC BY-SA 4.0</b></span>`;
+    `<span>Atualizado em <b>${fmtD(D.ger.slice(0,10))} às ${D.ger.slice(11,16)}</b></span><span>Fonte: <b>SAPL da Câmara Municipal da Lapa</b></span><span>Licença <b>CC BY-SA 4.0</b></span>`;
   document.getElementById("gen").textContent = "Dados extraídos da API pública do SAPL em " + fmtD(D.ger.slice(0,10)) + ".";
 }
 

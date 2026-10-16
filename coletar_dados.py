@@ -17,6 +17,9 @@ import re
 import time
 from collections import defaultdict
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+FUSO = ZoneInfo("America/Sao_Paulo")
 
 import requests
 
@@ -59,7 +62,7 @@ def cortar(txt, n):
 
 
 def main():
-    hoje = datetime.now().date().isoformat()
+    hoje = datetime.now(FUSO).date().isoformat()
     legs = todos("/api/parlamentares/legislatura/")
     leg = next((l for l in legs if l["data_inicio"] <= hoje <= l["data_fim"]), max(legs, key=lambda l: l["numero"]))
     ano_ini = int(leg["data_inicio"][:4])
@@ -158,7 +161,7 @@ def main():
 
     usadas = {s for c in cnt.values() for a in c.values() for s in a} | SIGLAS_PROJETO | {"PLO", "PLC"}
     saida = {
-        "ger": datetime.now().strftime("%Y-%m-%dT%H:%M"),
+        "ger": datetime.now(FUSO).strftime("%Y-%m-%dT%H:%M"),  # horário de Brasília
         "ver": [[v["nome"], v["partido"], v["ativo"], v["votos"], v["completo"], v["foto"]] for v in ver],
         "vid": vid,
         "sess": sess,
